@@ -1,7 +1,7 @@
 import {inject} from '@loopback/core';
 import {getLogger, Logger} from 'log4js';
 import {BRIDGE_EVENTS, BRIDGE_METHODS, getBridgeSignature} from '../utils/bridge-utils';
-import FilteredBridgeTransactionProcessor from '../services/filtered-bridge-transaction-processor';
+import FilteredBridgeTransactionProcessor from './filtered-bridge-transaction-processor';
 import { BridgeDataFilterModel } from '../models/bridge-data-filter.model';
 import { PegoutStatusDataService } from './pegout-status-data-services/pegout-status-data.service';
 import ExtendedBridgeTx from './extended-bridge-tx';
@@ -16,6 +16,9 @@ import { PegoutWaitingConfirmation } from 'bridge-state-data-parser';
 import { PegoutStatusBuilder } from './pegout-status/pegout-status-builder';
 import {ExtendedBridgeEvent} from "../models/types/bridge-transaction-parser";
 import { sha256 } from '../utils/sha256-utils';
+
+
+const pegnatoriesData = new Map();
 
 export class PegoutDataProcessor implements FilteredBridgeTransactionProcessor {
   private logger: Logger;
@@ -46,7 +49,7 @@ export class PegoutDataProcessor implements FilteredBridgeTransactionProcessor {
     try {
       this.logger.debug(`[process] Got tx ${extendedBridgeTx.txHash}`);
 
-      const events: BridgeEvent[] = extendedBridgeTx.events;
+      const events: BridgeEvent[] = extendedBridgeTx.events;    
 
       if(this.hasReleaseBtcEvent(events)) {
         this.logger.trace('[process] found a release_btc event. Processing...');
@@ -74,6 +77,19 @@ export class PegoutDataProcessor implements FilteredBridgeTransactionProcessor {
       }
 
       if(this.hasUpdateCollectionsEvent(events)) {
+
+        events.forEach(
+          event => {
+            if (event.name === BRIDGE_EVENTS.UPDATE_COLLECTIONS){
+              pegnatoriesData.set(event.arguments, extendedBridgeTx.createdOn)
+            }
+          }
+          )
+        console.log("---------------------------------------------------------")
+        console.log("pegnatoriesData:")
+        console.log(pegnatoriesData)
+        console.log("---------------------------------------------------------")
+
         this.logger.trace('[process] Processing waiting for signature using the update collections event.');
         return await this.processWaitingForSignaturesStatus(extendedBridgeTx);
       }
