@@ -51,6 +51,26 @@ export class PegoutDataProcessor implements FilteredBridgeTransactionProcessor {
 
       const events: BridgeEvent[] = extendedBridgeTx.events;    
 
+      if(this.hasReleaseRequestReceivedEvent(events)) {
+        this.logger.trace('[process] found a release_request_received event. Processing...');
+        return await this.processReleaseRequestReceivedStatus(extendedBridgeTx);
+      }
+
+      if(this.hasUpdateCollectionsEvent(events)) {
+        this.logger.trace('[process] Processing waiting for signature using the update collections event.');
+        return await this.processWaitingForSignaturesStatus(extendedBridgeTx);
+      }
+
+      if(this.hasReleaseRequestedEvent(events)) {
+        this.logger.trace('[process] found a release_requested event. Processing...');
+        return await this.processWaitingForConfirmationStatus(extendedBridgeTx);
+      }
+
+      if(this.hasReleaseRequestRejectedEvent(events)) {
+        this.logger.trace('[process] found a release_request_rejected event. Processing...');
+        return await this.processReleaseRequestRejectedStatus(extendedBridgeTx);
+      }
+
       if(this.hasReleaseBtcEvent(events)) {
         this.logger.trace('[process] found a release_btc event. Processing...');
         return await this.processSignedStatus(extendedBridgeTx);
@@ -59,39 +79,6 @@ export class PegoutDataProcessor implements FilteredBridgeTransactionProcessor {
       if(this.hasBatchPegoutEvent(events)) {
         this.logger.trace('[process] found a batch_pegout_created event. Processing...');
         return await this.processBatchPegouts(extendedBridgeTx);
-      }
-
-      if(this.hasReleaseRequestedEvent(events)) {
-        this.logger.trace('[process] found a release_requested event. Processing...');
-        return await this.processWaitingForConfirmationStatus(extendedBridgeTx);
-      }
-
-      if(this.hasReleaseRequestReceivedEvent(events)) {
-        this.logger.trace('[process] found a release_request_received event. Processing...');
-        return await this.processReleaseRequestReceivedStatus(extendedBridgeTx);
-      }
-
-      if(this.hasReleaseRequestRejectedEvent(events)) {
-        this.logger.trace('[process] found a release_request_rejected event. Processing...');
-        return await this.processReleaseRequestRejectedStatus(extendedBridgeTx);
-      }
-
-      if(this.hasUpdateCollectionsEvent(events)) {
-
-        events.forEach(
-          event => {
-            if (event.name === BRIDGE_EVENTS.UPDATE_COLLECTIONS){
-              pegnatoriesData.set(event.arguments, extendedBridgeTx.createdOn)
-            }
-          }
-          )
-        console.log("---------------------------------------------------------")
-        console.log("pegnatoriesData:")
-        console.log(pegnatoriesData)
-        console.log("---------------------------------------------------------")
-
-        this.logger.trace('[process] Processing waiting for signature using the update collections event.');
-        return await this.processWaitingForSignaturesStatus(extendedBridgeTx);
       }
 
       this.logger.warn('[process] other statuses processing not yet implemented.');
